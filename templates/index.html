@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SayHalo</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+
+  <!-- Header -->
+  <!-- <header class="header">
+    <div class="logo">🤖 SayHalo</div>
+  </header> -->
+
+  <!-- Hero -->
+  <section class="hero">
+    <h1>Hi, Welcome</h1>
+    <h2>Can I help you with anything?</h2>
+    <p>Upload documents, ask questions, and get evaluated answers.</p>
+  </section>
+
+  <!-- Upload Section -->
+  <section class="upload-card">
+    <input type="file" id="file" />
+    <button onclick="indexDoc()">Index</button>
+  </section>
+
+  <!-- Chat -->
+  <section class="chat-container">
+    <div id="chat"></div>
+
+    <div class="chat-input">
+      <input
+        id="question"
+        type="text"
+        placeholder="Ask me here..."
+      />
+      <button onclick="ask()">Send ➤</button>
+    </div>
+  </section>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
