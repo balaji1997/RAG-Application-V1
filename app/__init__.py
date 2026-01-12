@@ -1,18 +1,19 @@
 """
 RAG Application Package
 
-This package contains:
+Includes:
 - Document preprocessing
-- Vector indexing
-- Retriever construction
-
-Used by:
-- Indexing pipelines
-- RAG chains
-- FastAPI services
+- Indexing
+- Retrieval
+- Evaluation
+- API services
 """
 
 __all__ = [
-    "indexer",
+    "api",
+    "index",
+    "retriver",
     "pre_process",
+    "evaluate",
+    "evaluate_ragas",
 ]
