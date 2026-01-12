@@ -1,23 +1,20 @@
 const questionInput = document.getElementById("question");
 const fileInput = document.getElementById("file");
 
+// ------------------------
+// Helper: Add chat bubble
+// ------------------------
 function add(role, text) {
   const chat = document.getElementById("chat");
   const div = document.createElement("div");
 
-  div.classList.add("chat-bubble");
-
-  if (role === "user") {
-    div.classList.add("user");
-  } else if (role === "bot") {
-    div.classList.add("bot");
-  } else if (role === "evaluation") {
-    div.classList.add("evaluation");
-  }
-
+  div.classList.add("chat-bubble", role);
   div.innerText = text;
+
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
+
+  return div; // 🔑 return node for later update
 }
 
 // ------------------------
@@ -33,16 +30,14 @@ async function indexDoc() {
   const form = new FormData();
   form.append("file", file);
 
-  add("bot", "📄 Uploading & indexing document...");
+  add("bot", "Uploading document...");
 
-  const res = await fetch("/index", {
+  await fetch("/index", {
     method: "POST",
     body: form,
   });
 
-  const data = await res.json();
-
-  add("bot", "✅ Document indexed successfully");
+  add("bot", "Document uploaded successfully");
 }
 
 // ------------------------
@@ -55,6 +50,12 @@ async function ask() {
   add("user", q);
   questionInput.value = "";
 
+  // Show thinking indicator
+  const thinkingBubble = document.createElement("div");
+  thinkingBubble.className = "chat-bubble bot";
+  thinkingBubble.innerText = "Thinking...";
+  document.getElementById("chat").appendChild(thinkingBubble);
+
   const res = await fetch("/ask", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -63,19 +64,40 @@ async function ask() {
 
   const data = await res.json();
 
+  // Remove thinking
+  thinkingBubble.remove();
+
+  // 1. Answer
   add("bot", data.answer);
 
+  // 2. Evaluation
   if (data.evaluation) {
     add(
       "evaluation",
-      `📊 Evaluation
+      `Evaluation
 Faithfulness: ${data.evaluation.faithfulness_score}
 Hallucination: ${data.evaluation.hallucination}
 
 ${data.evaluation.explanation}`
     );
   }
+
+  // 3. Sources (ATTACHED, not floating)
+  if (data.sources && data.sources.length > 0) {
+    let sourceText = "Sources\n";
+
+    data.sources.forEach((src, idx) => {
+      sourceText += `\n${idx + 1}. ${src.source}`;
+      if (src.page !== null && src.page !== undefined) {
+        sourceText += ` (page ${src.page})`;
+      }
+      sourceText += `\n"${src.snippet}"\n`;
+    });
+
+    add("sources", sourceText);
+  }
 }
+
 
 // ENTER key support
 questionInput.addEventListener("keydown", (e) => {

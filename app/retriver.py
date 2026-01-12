@@ -61,10 +61,32 @@ def load_retriever() -> ParentDocumentRetriever:
 
 
 # ------------------------------------------------
-# Helper: format retrieved docs
+# Helper: format retrieved docs (USED BY RAG)
 # ------------------------------------------------
 def format_docs(docs: List[Document]) -> str:
     return "\n\n".join(doc.page_content for doc in docs)
+
+
+# ------------------------------------------------
+# NEW: Helper to extract retrieval sources
+# (Safe addition – does not affect frontend unless used)
+# ------------------------------------------------
+def extract_sources(docs: List[Document]) -> List[dict]:
+    """
+    Extracts human-readable source information
+    for frontend display or logging.
+    """
+    sources = []
+    for doc in docs:
+        meta = doc.metadata or {}
+        sources.append(
+            {
+                "source": os.path.basename(meta.get("source", "unknown")),
+                "page": meta.get("page"),
+                "snippet": doc.page_content[:300] + "...",
+            }
+        )
+    return sources
 
 
 # ------------------------------------------------
@@ -80,7 +102,7 @@ def build_rag_chain(retriever: ParentDocumentRetriever):
     prompt = ChatPromptTemplate.from_template(
         """
 Answer the question using the provided document context.
-If the context is unrelated, say "I don't know".
+If the context is unrelated, say "Sorry, I could not find any relevant information in the provided document to answer this question".
 
 Context:
 {context}
@@ -103,10 +125,10 @@ Answer:
 
 
 # ------------------------------------------------
-# Local test run ONLY
+# Local test run ONLY (unchanged behavior)
 # ------------------------------------------------
 if __name__ == "__main__":
-    print("🔥 retriver module running in standalone mode")
+    print("retriver module running in standalone mode")
 
     retriever = load_retriever()
     rag_chain = build_rag_chain(retriever)
@@ -117,9 +139,10 @@ if __name__ == "__main__":
     # Retrieval
     # ---------------------------
     retrieved_docs = retriever.invoke(query)
-    print(f"\n🔍 Retrieved {len(retrieved_docs)} documents")
+    print(f"\n Retrieved {len(retrieved_docs)} documents")
 
     retrieved_contexts = [doc.page_content for doc in retrieved_docs]
+    sources = extract_sources(retrieved_docs)
 
     # ---------------------------
     # Generation
@@ -127,13 +150,13 @@ if __name__ == "__main__":
     response = rag_chain.invoke(query)
     answer = response.content
 
-    print("\n🧠 Answer:\n")
+    print("\n Answer:\n")
     print(answer)
 
     # ---------------------------
     # Evaluation
     # ---------------------------
-    print("\n🧠 Running Gemini-based evaluation...")
+    print("\n Running Gemini-based evaluation...")
 
     evaluation = evaluate_with_gemini(
         question=query,
@@ -141,5 +164,9 @@ if __name__ == "__main__":
         contexts=retrieved_contexts,
     )
 
-    print("\n📊 Gemini Evaluation Result:\n")
+    print("\n Gemini Evaluation Result:\n")
     print(evaluation)
+
+    print("\n Sources:\n")
+    for s in sources:
+        print(s)

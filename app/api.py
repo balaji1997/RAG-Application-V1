@@ -5,10 +5,14 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 import shutil
 import os
-from typing import Dict
+from typing import Any, Dict, List
 
 from app.index import create_indexer_from_env
-from app.retriver import load_retriever, build_rag_chain
+from app.retriver import (
+    load_retriever,
+    build_rag_chain,
+    extract_sources,
+)
 from app.evaluate import evaluate_with_gemini
 
 # ---------------------------
@@ -16,12 +20,12 @@ from app.evaluate import evaluate_with_gemini
 # ---------------------------
 app = FastAPI(
     title="Live RAG API",
-    description="RAG with live indexing, retrieval, and Gemini evaluation",
-    version="2.0.0",
+    description="RAG with live indexing, retrieval, evaluation, and source attribution",
+    version="2.2.0",
 )
 
 # ---------------------------
-# Static + Templates (UI)
+# Static + Templates
 # ---------------------------
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
@@ -41,13 +45,8 @@ class AskRequest(BaseModel):
 
 class AskResponse(BaseModel):
     answer: str
-    evaluation: Dict
-
-
-class EvaluateRequest(BaseModel):
-    question: str
-    answer: str
-    contexts: list[str]
+    evaluation: Dict[str, Any]
+    sources: List[Dict[str, Any]]
 
 
 # ---------------------------
@@ -59,14 +58,11 @@ def health():
 
 
 # ---------------------------
-# UI Route
+# UI
 # ---------------------------
 @app.get("/ui", response_class=HTMLResponse)
 def ui(request: Request):
-    return templates.TemplateResponse(
-        "index.html",
-        {"request": request}
-    )
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
 # ---------------------------
@@ -74,48 +70,35 @@ def ui(request: Request):
 # ---------------------------
 @app.post("/index")
 def index_document(file: UploadFile = File(...)):
-    """
-    Upload + preprocess + index document
-    """
     file_path = os.path.join(UPLOAD_DIR, file.filename)
 
     with open(file_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
-    # Set env dynamically
     os.environ["DOCUMENT_PATH"] = file_path
-
-    # Persistent indexing
     create_indexer_from_env()
 
-    return {
-        "message": "Document indexed successfully",
-        "filename": file.filename,
-    }
+    return {"message": "Document Uploaded successfully"}
 
 
 # ---------------------------
-# Ask question (RAG + Evaluation)
+# Ask question (RAG + Evaluation + Conditional Sources)
 # ---------------------------
 @app.post("/ask", response_model=AskResponse)
 def ask_question(request: AskRequest):
-    """
-    Stateless RAG inference + Gemini evaluation
-    """
 
-    # 1. Load retriever from persistent storage
     retriever = load_retriever()
     rag_chain = build_rag_chain(retriever)
 
-    # 2. Retrieve context
+    # 1. Retrieve
     retrieved_docs = retriever.invoke(request.question)
     contexts = [doc.page_content for doc in retrieved_docs]
 
-    # 3. Generate answer
+    # 2. Generate answer
     response = rag_chain.invoke(request.question)
-    answer = response.content
+    answer = response.content.strip()
 
-    # 4. Evaluate (SAFE)
+    # 3. Evaluate answer
     try:
         evaluation = evaluate_with_gemini(
             question=request.question,
@@ -129,20 +112,24 @@ def ask_question(request: AskRequest):
             "explanation": f"Evaluation failed: {str(e)}",
         }
 
+    # 4. SOURCE GATING (CRITICAL FIX)
+    sources: List[Dict[str, Any]] = []
+
+    answer_lower = answer.lower()
+    irrelevant_phrases = [
+        "i don't know",
+        "cannot find",
+        "could not find",
+        "no relevant",
+        "not provided in the context",
+        "could not find any relevant information",
+    ]
+
+    if not any(phrase in answer_lower for phrase in irrelevant_phrases):
+        sources = extract_sources(retrieved_docs)
+
     return {
         "answer": answer,
         "evaluation": evaluation,
+        "sources": sources,  # empty list for irrelevant questions
     }
-
-
-# ---------------------------
-# Standalone evaluation endpoint
-# ---------------------------
-@app.post("/evaluate")
-def evaluate_answer(request: EvaluateRequest):
-    result = evaluate_with_gemini(
-        question=request.question,
-        answer=request.answer,
-        contexts=request.contexts,
-    )
-    return {"evaluation": result}

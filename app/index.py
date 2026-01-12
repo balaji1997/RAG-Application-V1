@@ -40,12 +40,12 @@ def create_indexer_from_env() -> ParentDocumentRetriever:
     file_path = os.getenv("DOCUMENT_PATH")
 
     if not file_path or not os.path.exists(file_path):
-        raise FileNotFoundError("❌ DOCUMENT_PATH invalid")
+        raise FileNotFoundError("DOCUMENT_PATH invalid")
 
-    print(f"📄 Loading document: {file_path}")
+    print(f"Loading document: {file_path}")
 
     documents = assign_ids(process_document(file_path))
-    print(f"🧹 Pages loaded: {len(documents)}")
+    print(f"Pages loaded: {len(documents)}")
 
     embeddings = HuggingFaceEmbeddings(
         model_name=os.getenv("EMBEDDING_MODEL_NAME"),
@@ -61,7 +61,7 @@ def create_indexer_from_env() -> ParentDocumentRetriever:
         ),
     )
 
-    # ✅ Persistent docstore (SERIALIZES Document correctly)
+    # Persistent docstore (SERIALIZES Document correctly)
     file_store = LocalFileStore("./data/parent_docs")
     docstore = create_kv_docstore(file_store)
 
@@ -76,11 +76,11 @@ def create_indexer_from_env() -> ParentDocumentRetriever:
         ),
     )
 
-    print("🔄 Indexing documents...")
+    print("Indexing documents...")
     retriever.add_documents(documents)
 
     print(
-        f"✅ Indexing complete. "
+        f"Indexing complete. "
         f"Child chunks stored: {vectorstore._collection.count()}"
     )
 
@@ -91,5 +91,5 @@ def create_indexer_from_env() -> ParentDocumentRetriever:
 # Local test run ONLY
 # ------------------------------------------------
 if __name__ == "__main__":
-    print("🔥 index module running in standalone mode")
+    print("index module running in standalone mode")
     create_indexer_from_env()
