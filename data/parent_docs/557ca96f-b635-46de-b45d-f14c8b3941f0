@@ -1,0 +1,1 @@
+{"lc": 1, "type": "constructor", "id": ["langchain", "schema", "document", "Document"], "kwargs": {"page_content": "Sun rises in the East", "metadata": {"source": "uploaded_docs\\Doc-A.pdf", "page": 0, "doc_id": "233ec1e9-4213-48bd-8839-9bda62b00c4b"}, "type": "Document"}}

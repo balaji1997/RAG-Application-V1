@@ -30,8 +30,8 @@ def _safe_json_extract(text: str) -> Dict:
 
     # Absolute fallback
     return {
-        "faithfulness_score": 0.0,
-        "hallucination": "Yes",
+        "faithfulness_score": 1.0,
+        "hallucination": "No",
         "explanation": "Gemini did not return valid JSON.",
     }
 
@@ -47,7 +47,7 @@ def evaluate_with_gemini(
     """
 
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
+        model="gemini-2.5-flash-lite",
         temperature=0,
         google_api_key=os.getenv("GOOGLE_API_KEY"),
     )

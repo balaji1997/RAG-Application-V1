@@ -14,7 +14,7 @@ function add(role, text) {
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
 
-  return div; // 🔑 return node for later update
+  return div; // return node for later update
 }
 
 // ------------------------
@@ -82,7 +82,7 @@ ${data.evaluation.explanation}`
     );
   }
 
-  // 3. Sources (ATTACHED, not floating)
+  // 3. Sources
   if (data.sources && data.sources.length > 0) {
     let sourceText = "Sources\n";
 

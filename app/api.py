@@ -112,7 +112,7 @@ def ask_question(request: AskRequest):
             "explanation": f"Evaluation failed: {str(e)}",
         }
 
-    # 4. SOURCE GATING (CRITICAL FIX)
+    # 4. SOURCE GATING
     sources: List[Dict[str, Any]] = []
 
     answer_lower = answer.lower()
@@ -131,5 +131,5 @@ def ask_question(request: AskRequest):
     return {
         "answer": answer,
         "evaluation": evaluation,
-        "sources": sources,  # empty list for irrelevant questions
+        "sources": sources,  
     }

@@ -20,9 +20,20 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.storage import LocalFileStore, create_kv_docstore
 
+# BUFFER MEMORY
+from langchain.memory import ConversationBufferMemory
+
 from app.evaluate import evaluate_with_gemini
 
 load_dotenv()
+
+# ------------------------------------------------
+# GLOBAL BUFFER MEMORY
+# ------------------------------------------------
+memory = ConversationBufferMemory(
+    memory_key="chat_history",
+    return_messages=True,
+)
 
 # ------------------------------------------------
 # Load Retriever
@@ -61,15 +72,14 @@ def load_retriever() -> ParentDocumentRetriever:
 
 
 # ------------------------------------------------
-# Helper: format retrieved docs (USED BY RAG)
+# Helper: format retrieved docs
 # ------------------------------------------------
 def format_docs(docs: List[Document]) -> str:
     return "\n\n".join(doc.page_content for doc in docs)
 
 
 # ------------------------------------------------
-# NEW: Helper to extract retrieval sources
-# (Safe addition – does not affect frontend unless used)
+# Extract sources
 # ------------------------------------------------
 def extract_sources(docs: List[Document]) -> List[dict]:
     """
@@ -90,25 +100,46 @@ def extract_sources(docs: List[Document]) -> List[dict]:
 
 
 # ------------------------------------------------
-# Build Gemini RAG chain
+# Build Gemini RAG chain WITH MEMORY
 # ------------------------------------------------
 def build_rag_chain(retriever: ParentDocumentRetriever):
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
+        model="gemini-2.5-flash-lite",
         temperature=0.2,
         google_api_key=os.getenv("GOOGLE_API_KEY"),
     )
 
     prompt = ChatPromptTemplate.from_template(
         """
-Answer the question using the provided document context.
-If the context is unrelated, say "Sorry, I could not find any relevant information in the provided document to answer this question".
+You are a careful Retrieval-Augmented Generation (RAG) assistant.
+
+You must follow these rules strictly:
+
+1. Answer ONLY using the provided document context.
+2. If multiple documents provide conflicting or contradictory information:
+   - Explicitly mention the disagreement.
+   - State which document says what.
+   - Conclude that the answer is ambiguous or disputed.
+3. Do NOT choose one answer arbitrarily when contradictions exist.
+- If unrelated, say:
+"Sorry, I could not find any relevant information in the provided document to answer this question."
+
+---
+
+Chat History:
+{chat_history}
+
+---
 
 Context:
 {context}
 
+---
+
 Question:
 {question}
+
+---
 
 Answer:
 """
@@ -118,6 +149,7 @@ Answer:
         {
             "context": retriever | format_docs,
             "question": RunnablePassthrough(),
+            "chat_history": lambda _: memory.load_memory_variables({})["chat_history"],
         }
         | prompt
         | llm
@@ -125,7 +157,7 @@ Answer:
 
 
 # ------------------------------------------------
-# Local test run ONLY (unchanged behavior)
+# Local test run ONLY
 # ------------------------------------------------
 if __name__ == "__main__":
     print("retriver module running in standalone mode")
@@ -133,40 +165,10 @@ if __name__ == "__main__":
     retriever = load_retriever()
     rag_chain = build_rag_chain(retriever)
 
-    query = "What are the causes of climate change?"
+    query1 = "What are the causes of climate change?"
+    response1 = rag_chain.invoke(query1)
+    print("\nAnswer 1:\n", response1.content)
 
-    # ---------------------------
-    # Retrieval
-    # ---------------------------
-    retrieved_docs = retriever.invoke(query)
-    print(f"\n Retrieved {len(retrieved_docs)} documents")
-
-    retrieved_contexts = [doc.page_content for doc in retrieved_docs]
-    sources = extract_sources(retrieved_docs)
-
-    # ---------------------------
-    # Generation
-    # ---------------------------
-    response = rag_chain.invoke(query)
-    answer = response.content
-
-    print("\n Answer:\n")
-    print(answer)
-
-    # ---------------------------
-    # Evaluation
-    # ---------------------------
-    print("\n Running Gemini-based evaluation...")
-
-    evaluation = evaluate_with_gemini(
-        question=query,
-        answer=answer,
-        contexts=retrieved_contexts,
-    )
-
-    print("\n Gemini Evaluation Result:\n")
-    print(evaluation)
-
-    print("\n Sources:\n")
-    for s in sources:
-        print(s)
+    query2 = "Explain more about greenhouse gases"
+    response2 = rag_chain.invoke(query2)
+    print("\nAnswer 2:\n", response2.content)

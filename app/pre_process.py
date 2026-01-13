@@ -37,7 +37,7 @@ def process_pdf(file_path: str) -> List[Document]:
     for d in docs:
         d.page_content = normalize_text(d.page_content)
 
-    return docs  # NO chunking
+    return docs 
 
 
 def process_word(file_path: str) -> List[Document]:
@@ -47,7 +47,7 @@ def process_word(file_path: str) -> List[Document]:
     for d in docs:
         d.page_content = normalize_text(d.page_content)
 
-    return docs  # NO chunking
+    return docs 
 
 
 def process_document(file_path: str) -> List[Document]:

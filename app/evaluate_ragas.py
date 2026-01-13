@@ -31,7 +31,7 @@ def run_ragas_evaluation(
     )
 
     # -------------------------------
-    # OpenAI Judge LLM (REQUIRED)
+    # OpenAI Judge LLM
     # -------------------------------
     judge_llm = ChatOpenAI(
         model="gpt-3.5-turbo",
